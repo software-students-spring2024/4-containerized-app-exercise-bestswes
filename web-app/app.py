@@ -10,7 +10,7 @@ db = client.test
 
 #homepage -add receipt - history 
 
-#get image route 
+#get image route -create new receipt in databse  
 @app.route("/upload_image", methods=["POST"])
 def upload_image():
     """
@@ -18,20 +18,19 @@ def upload_image():
     """
     image_data = request.form["image_data"]
     if image_data != "test":
-        db.images.insert_one({"image_data": image_data})
+        db.receipts.insert_one({"image_data": image_data})
     #return redirect(url_for("display"))
 
-#(display after reading receipt, needs to pull receipt from database )
+#(  pull receipt from database )
 #ask for num people / names 
 #label appetizers
 #allocate items -> people 
-#calculate total, show total 
+#calculate total, show total, update receipt in database 
 
 
 @app.route("/search_history")
 def search_history():
     return render_template("search_history.html")
-
 
 #route to show all the receipts history with functionality to search a keyword
 @app.route("/history")
