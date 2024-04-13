@@ -32,7 +32,6 @@ def upload_image():
 def search_history():
     return render_template("search_history.html")
 
-
 #route to show all the receipts history with functionality to search a keyword
 @app.route("/history")
 def history():
