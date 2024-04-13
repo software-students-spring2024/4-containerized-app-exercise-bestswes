@@ -6,13 +6,13 @@ image = "RestaurantReceipt1.png"
 
 # Get response (can only do this a couple times with the test API key)
 res = requests.post(url, 
-                   data = {
+                    data = {
                         'api_key': 'TEST',
                         'recognizer': 'auto',
                         'ref_no': 'ocr_python_123'
-                   },
-                   files = {
-                    'file': open(image, "rb")
+                    },
+                    files = {
+                        'file': open(image, "rb")
                     })
 
 with open("response1.json", "w") as f:
