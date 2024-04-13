@@ -4,7 +4,7 @@ import requests
 url = "https://ocr.asprise.com/api/v1/receipt"
 image = "RestaurantReceipt1.png"
 
-# Get response
+# Get response (can only do this a couple times with the test API key)
 res = requests.post(url, 
                    data = {
                         'api_key': 'TEST',
@@ -15,7 +15,6 @@ res = requests.post(url,
                     'file': open(image, "rb")
                     })
 
-print(res.text)
 with open("response1.json", "w") as f:
     f.write(res.text)
 

@@ -24,4 +24,6 @@ In this project, we redesigned the frontend, containerized the web app and datab
 
 ## Primary Resources
 
+ML client based off tutorial by [NeuralNine](https://www.youtube.com/watch?v=dSCJ7DImGdA) using the asprise OCR API.
+
 ## Secondary Resources - Inspiration
