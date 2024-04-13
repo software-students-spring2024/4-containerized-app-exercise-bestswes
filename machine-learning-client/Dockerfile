@@ -17,6 +17,3 @@ COPY . /app/
 
 # It's better to set environment variables like DATABASE_URL in the docker-compose file or through the Docker run command for security reasons.
 ENV DATABASE_URL=mongodb://mongo:27017/
-
-# Command to run the application
-CMD ["python", "camera.py"]

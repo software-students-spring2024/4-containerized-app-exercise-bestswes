@@ -27,7 +27,7 @@ In one terminal,
 
 `docker build -t web_app_image .`
 
-`docker run -it --rm --name web_app_container -p 5000:5000 --network ChequeMate web_app_image`
+`docker run -it --rm --name web_app_container -p 5001:5001 --network ChequeMate web_app_image`
 
 In another terminal,
 
@@ -35,7 +35,7 @@ In another terminal,
 
 `docker build -t ml_client_image .`
 
-`docker run -it --rm --name ml_client_container -p 5001:5001 --network ChequeMate ml_client_image`
+`docker run -it --rm --name ml_client_container -p 5002:5002 --network ChequeMate ml_client_image`
 
 In another another terminal,
 
