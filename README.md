@@ -23,7 +23,7 @@ In one terminal,
 
 `docker network create ChequeMate`
 
-`cd web_app`
+`cd web_app/`
 
 `docker build -t web_app_image .`
 
