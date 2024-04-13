@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Allocate Food Items</title>
+</head>
+<body>
+    <h1>Allocate Food Items to Individuals</h1>
+    <form method="post">
+        {% for person in people %}
+            <h3>{{ person.names }}</h3>
+            {% for item in food_items %}
+                <div>
+                    <input type="checkbox" name="{{ person.names }}" value="{{ item._id }}">
+                    <label>{{ item.name }}</label>
+                </div>
+            {% endfor %}
+        {% endfor %}
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
