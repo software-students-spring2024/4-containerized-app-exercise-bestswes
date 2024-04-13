@@ -1,0 +1,4 @@
+pymongo
+pylint
+black
+requests
