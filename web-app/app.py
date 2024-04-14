@@ -135,7 +135,7 @@ def calculate_bill(_id):
 
     num_of_people = receipt['num_of_people']
     items = receipt['items']
-    diners = receipt.get('diners', [])  # Get diners field
+    diners = receipt.get('allocations', [])  # Get diners field
 
     # Extract tax and tip percentages from the receipt
     tax_rate = 0.0875  # Default tax rate of 8.75%
