@@ -7,12 +7,12 @@ import requests
 app = Flask(__name__)
 
 # Connect to MongoDB
-client = MongoClient(os.getenv("MONGO_URI", "mongodb://mongodb:27017/"))
+client = MongoClient(os.getenv("MONGO_URI", "mongodb://27017:27017/"))
 db = client.test
 
 # Call the ML service to perform OCR on the receipt
 def call_ml_service(Object_ID):
-    url = "http://machine-learning-client:5002/predict"
+    url = "http://5002:5002/predict"
     response = requests.post(url, data=Object_ID)
     return response.json()
 
@@ -25,15 +25,24 @@ def home():
 def upload_receipt():
     file = request.files['receipt_image']
     if file and file.filename:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+        # Save the file into a folder in the current working directory and create the folder if it doesn't exist
+        # filename = secure_filename(file.filename)
+        # script_dir = os.path.dirname(os.path.realpath(__file__))
+        # upload_folder = os.path.join(script_dir, 'photo-uploads')
+        
+        # if not os.path.exists(upload_folder):
+        #     os.makedirs(upload_folder)
+        
+        # file_path = os.path.join(upload_folder, filename)
+        # file.save(file_path)
         
         # Implement any processing or database storage as necessary
-        image_data = request.form["image_data"]
+        image_data = request.form.get("image_data")
+        print('Image Data: ', image_data)
+        
         Object_ID = 0
         if image_data != "test":
-            result = db.images.insert_one({"image_data": image_data})
+            result = db.receipts.insert_one({"image_data": image_data})
             Object_ID = result.inserted_id
         print('ObjectID: ', Object_ID)
         call_ml_service(Object_ID)
