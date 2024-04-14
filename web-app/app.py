@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, redirect, request, url_for
 from pymongo import MongoClient
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -9,17 +10,26 @@ client = MongoClient(os.getenv("MONGO_URI", "mongodb://mongodb:27017/"))
 db = client.test
 
 #homepage -add receipt - history 
+@app.route('/')
+def home():
+    return render_template('home.html')
 
-#get image route -create new receipt in databse  
-@app.route("/upload_image", methods=["POST"])
-def upload_image():
-    """
-    Send the initial unprocessed image to MongoDB.
-    """
-    image_data = request.form["image_data"]
-    if image_data != "test":
-        db.receipts.insert_one({"image_data": image_data})
-    #return redirect(url_for("display"))
+@app.route('/upload', methods=['POST'])
+def upload_receipt():
+    file = request.files['receipt_image']
+    if file and file.filename:
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+        # Implement any processing or database storage as necessary
+        return redirect(url_for('home'))
+    return 'File upload failed', 400
+
+
+@app.route('/history')
+def history():
+    # Implement retrieval and display of receipt history
+    return render_template('history.html')
 
 #(  pull receipt from database )
 #ask for num people / names 
