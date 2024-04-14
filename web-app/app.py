@@ -23,41 +23,22 @@ def home():
 
 @app.route('/upload', methods=['POST'])
 def upload_receipt():
-    # Check if the post request has the file part
-    if 'receipt_image' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    
     file = request.files['receipt_image']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    
     if file and file.filename:
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
         
-        # Process other form data
-        image_data = request.form.get("image_data")
-        if not image_data:
-            return jsonify({"error": "Missing image data"}), 400
-        
-        try:
-            # Insert document into MongoDB
+        # Implement any processing or database storage as necessary
+        image_data = request.form["image_data"]
+        Object_ID = 0
+        if image_data != "test":
             result = db.images.insert_one({"image_data": image_data})
-            object_id = result.inserted_id
-            print('ObjectID: ', object_id)
-            
-            # Call ML service or perform other processing
-            call_ml_service(str(object_id))
-            return redirect(url_for('home'))
-        except pymongo.errors.PyMongoError as e:
-            logging.error("Failed to insert document into MongoDB", exc_info=True)
-            return jsonify({"error": "Database insertion failed"}), 500
-    
-    return jsonify({"error": "File upload failed"}), 400
-
-
-
+            Object_ID = result.inserted_id
+        print('ObjectID: ', Object_ID)
+        call_ml_service(Object_ID)
+        return redirect(url_for('home'))
+    return 'File upload failed', 400
 
 #(  pull receipt from database )
 @app.route('/numofpeople')
