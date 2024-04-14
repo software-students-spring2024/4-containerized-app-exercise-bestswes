@@ -2,7 +2,9 @@ import os
 from flask import Flask, render_template, redirect, request, url_for
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
-import requests
+from bson.objectid import ObjectId
+
+
 
 app = Flask(__name__)
 
@@ -54,26 +56,26 @@ def numofpeople():
 
 @app.route('/submit_people', methods=["POST"])
 def submit_people():
-    """
-    Process the submitted number of people and names.
-    """
-    receipt_id = request.form['receipt_id']  # This should be passed as part of the form submission
-    count = request.form['count']
-    names = request.form['names']
+    try:
+        receipt_id = request.form['receipt_id']
+        count = request.form['count']
+        names = request.form['names']
+    except KeyError as e:
+        flash(f'Missing required field: {e}')
+        return redirect(url_for('numofpeople'))
+
     names_list = [name.strip() for name in names.split(',')]
-    
-    # Update the receipt document in the 'receipts' collection
     result = db.receipts.update_one(
         {"_id": ObjectId(receipt_id)},
         {"$set": {"num_of_people": int(count), "people_names": names_list}}
     )
-    
     if result.matched_count == 0:
-        return "Receipt not found", 404  # If no document matches the ID, return an error
+        return "Receipt not found", 404
     if result.modified_count == 0:
-        return "No update performed", 404  # If no document was modified, return an error
+        return "No update performed", 404
 
-    return redirect(url_for('home'))  # Redirect to home after submission
+    return redirect(url_for('home'))
+
 
 #label appetizers
 @app.route('/select_appetizers/<receipt_id>', methods=['GET', 'POST'])
