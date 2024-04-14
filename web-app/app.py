@@ -114,31 +114,56 @@ def allocateitems():
 
 #calculate total, show total, update receipt in database 
 
-@app.route('/calculate_bill/<receipt_id>')
-def calculate_bill(receipt_id):
-    receipt = db.receipts.find_one({"_id": receipt_id})
+from bson import ObjectId
+from flask import Flask, jsonify, abort
+from pymongo import MongoClient
+
+app = Flask(__name__)
+client = MongoClient("mongodb://localhost:27017/")
+db = client['yourdatabase']
+
+@app.route('/calculate_bill/<_id>')
+def calculate_bill(_id):
+    try:
+        # Convert _id from string to ObjectId and find the receipt
+        receipt = db.receipts.find_one({"_id": ObjectId(_id)})
+    except:
+        return "Invalid ID format", 400
+
     if not receipt:
-        return "Receipt not found", 404
+        return jsonify({"error": "Receipt not found"}), 404
 
     num_of_people = receipt['num_of_people']
     items = receipt['items']
+    diners = receipt.get('allocations', [])  # Get diners field, defaulting to an empty list if not found
 
     # Calculate total cost of appetizers and split equally
-    appetizer_total = sum(item['price'] for item in items if item['is_appetizer'])
-    appetizer_split = appetizer_total / num_of_people if num_of_people else 0
+    appetizer_total = sum(item['price'] for item in items if item.get('is_appetizer', False))
+    appetizer_split = appetizer_total / num_of_people if num_of_people > 0 else 0
 
     # Initialize a dictionary to hold each diner's total, starting with the appetizer split
     payments = {}
-    for person, dishes in db.diners.items():
-        total = 0
-        for dish in dishes:
-            if dish in db.receipts.items:
-                total += db.receipts.items[dish]
-        total += appetizer_split
-        payments[person] = total
-    return payments
 
-    db.receipts.find_one_and_update({"_id": receipt_id}, payments)
+    # Process each diner's payment, assuming each diner object includes a name and a list of dish names
+    for diner in diners:
+        diner_name = diner['name']
+        total = appetizer_split
+        for dish_name in diner['dishes']:
+            # Find dish price from items list
+            for item in items:
+                if item['name'] == dish_name:
+                    total += item['price']
+                    break
+        payments[diner_name] = total
+
+    # Update the receipt with the calculated payments
+    db.receipts.update_one({"_id": ObjectId(_id)}, {'$set': {'payments': payments}})
+
+    return jsonify(payments), 200
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 
 
