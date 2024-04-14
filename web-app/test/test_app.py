@@ -82,4 +82,51 @@ def test_search_history_content(client):
 def test_upload_receipt_fail_no_file(client):
     response = client.post('/upload', data={}, content_type='multipart/form-data')
     assert response.status_code == 400
-        
+
+def test_select_appetizers_get(client, mock_db):
+    db = mock_db
+    db.food_items.insert_one({'_id': ObjectId(), 'name': 'Spring Rolls', 'is_appetizer': False})
+    
+    response = client.get('/select_appetizers')
+    assert response.status_code == 200
+    assert b"Spring Rolls" in response.data
+
+def test_select_appetizers_post(client, mock_db):
+    db = mock_db
+    item_id = ObjectId()
+    db.food_items.insert_one({'_id': item_id, 'name': 'Chicken Wings', 'is_appetizer': False})
+
+    response = client.post('/select_appetizers', data={'appetizers': [str(item_id)]})
+    assert response.status_code == 302  
+    updated_item = db.food_items.find_one({'_id': item_id})
+    assert updated_item['is_appetizer'] == True
+
+def test_allocateitems_get(client, mock_db):
+    db = mock_db
+    db.people.insert_many([
+        {'name': 'Alice'},
+        {'name': 'Bob'}
+    ])
+    db.food_items.insert_many([
+        {'_id': ObjectId(), 'name': 'Burger', 'is_appetizer': False},
+        {'_id': ObjectId(), 'name': 'Fries', 'is_appetizer': False}
+    ])
+
+    response = client.get('/allocateitems')
+    assert response.status_code == 200
+    assert b"Alice" in response.data
+    assert b"Burger" in response.data
+
+def test_allocateitems_post(client, mock_db):
+    db = mock_db
+    people = [{'name': 'Alice'}, {'name': 'Bob'}]
+    items = [{'_id': ObjectId(), 'name': 'Pizza'}, {'_id': ObjectId(), 'name': 'Pasta'}]
+    db.people.insert_many(people)
+    db.food_items.insert_many(items)
+    item_ids = [str(item['_id']) for item in items]
+
+    allocations = {person['name']: item_ids for person in people}
+    response = client.post('/allocateitems', data=allocations)
+    assert response.status_code == 302  
+    stored_allocations = db.allocations.find({})
+    assert stored_allocations.count() == len(people)
