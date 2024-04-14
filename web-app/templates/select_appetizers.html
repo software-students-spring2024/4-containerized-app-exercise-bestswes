@@ -6,10 +6,9 @@
 </head>
 <body>
     <h1>Select Appetizers</h1>
-    <form method="post">
+    <form method="post" action="{{ url_for('select_appetizers', receipt_id=receipt_id) }}">
         {% for item in items %}
             <div>
-                <!-- Check the box if the item is already marked as an appetizer -->
                 <input type="checkbox" name="appetizers" value="{{ item._id }}" {% if item.is_appetizer %} checked {% endif %}>
                 <label>{{ item.name }}</label>
             </div>

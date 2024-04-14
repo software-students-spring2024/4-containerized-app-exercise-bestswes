@@ -6,12 +6,12 @@
 </head>
 <body>
     <h1>Allocate Food Items to Individuals</h1>
-    <form method="post">
+    <form method="post" action="{{ url_for('allocateitems', receipt_id=receipt_id) }}">
         {% for person in people %}
-            <h3>{{ person.names }}</h3>
+            <h3>{{ person }}</h3> <!-- Assuming each person is just a name for simplicity -->
             {% for item in food_items %}
                 <div>
-                    <input type="checkbox" name="{{ person.names }}" value="{{ item._id }}">
+                    <input type="checkbox" name="person_{{ loop.index }}" value="{{ item._id }}">
                     <label>{{ item.name }}</label>
                 </div>
             {% endfor %}

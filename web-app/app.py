@@ -51,65 +51,72 @@ def numofpeople():
     """
     return render_template("numofpeople.html")
 
+
 @app.route('/submit_people', methods=["POST"])
 def submit_people():
     """
     Process the submitted number of people and names.
     """
+    receipt_id = request.form['receipt_id']  # This should be passed as part of the form submission
     count = request.form['count']
     names = request.form['names']
-    # Split the names by comma and strip spaces
     names_list = [name.strip() for name in names.split(',')]
     
-    # Example: Store in the database or perform other operations
-    db.people.insert_one({"count": count, "names": names_list})
+    # Update the receipt document in the 'receipts' collection
+    result = db.receipts.update_one(
+        {"_id": ObjectId(receipt_id)},
+        {"$set": {"num_of_people": int(count), "people_names": names_list}}
+    )
     
-    return redirect(url_for('search_history'))  # Redirect to another page after submission
+    if result.matched_count == 0:
+        return "Receipt not found", 404  # If no document matches the ID, return an error
+    if result.modified_count == 0:
+        return "No update performed", 404  # If no document was modified, return an error
+
+    return redirect(url_for('home'))  # Redirect to home after submission
 
 #label appetizers
-@app.route('/select_appetizers', methods=['GET', 'POST'])
-def select_appetizers():
+@app.route('/select_appetizers/<receipt_id>', methods=['GET', 'POST'])
+def select_appetizers(receipt_id):
     if request.method == 'POST':
-        # Retrieve a list of IDs for the items marked as appetizers
-        appetizer_ids = request.form.getlist('appetizers')
+        appetizer_ids = [ObjectId(id) for id in request.form.getlist('appetizers')]
+        # Update the specific receipt document to mark items as appetizers
+        db.receipts.update_one(
+            {"_id": ObjectId(receipt_id)},
+            {"$set": {"items.$[elem].is_appetizer": True}},
+            array_filters=[{"elem._id": {"$in": appetizer_ids}}]
+        )
         
-        # Update the database: set 'is_appetizer' to True for checked items and False otherwise
-        db.food_items.update_many({}, {'$set': {'is_appetizer': False}})
-        db.food_items.update_many({'_id': {'$in': [ObjectId(id) for id in appetizer_ids]}}, {'$set': {'is_appetizer': True}})
-        
-        return redirect(url_for('select_appetizers'))
+        return redirect(url_for('select_appetizers', receipt_id=receipt_id))
 
-    # Fetch all food items from the database
-    items = db.food_items.find()
-    return render_template('select_appetizers.html', items=items)
+    # Fetch the specific receipt and its food items
+    receipt = db.receipts.find_one({"_id": ObjectId(receipt_id)})
+    items = receipt['items'] if receipt else []
+    return render_template('select_appetizers.html', items=items, receipt_id=receipt_id)
 
 
 
 #allocate items -> people 
 
-@app.route('/allocateitems', methods=['GET', 'POST'])
-def allocateitems():
+@app.route('/allocateitems/<receipt_id>', methods=['GET', 'POST'])
+def allocateitems(receipt_id):
     if request.method == 'POST':
         # Retrieve form data, structured as {name: [list of food item ids]}
-        allocations = {key: request.form.getlist(key) for key in request.form.keys()}
+        allocations = {key: request.form.getlist(key) for key in request.form.keys() if key != 'receipt_id'}
         
-        # Clear previous allocations
-        db.allocations.drop()
-        
-        # Insert new allocations ensuring no item is assigned more than once
-        used_items = set()
+        # Update the specific receipt with new allocations
         for name, items in allocations.items():
-            new_items = [item for item in items if item not in used_items]
-            used_items.update(new_items)
-            if new_items:
-                db.allocations.insert_one({"name": name, "items": new_items})
-        
-        return redirect(url_for('allocateitems'))
+            db.receipts.update_one(
+                {"_id": ObjectId(receipt_id)},
+                {"$set": {"allocations": {name: items}}}
+            )
 
-    people = db.people.find()
-    food_items = db.food_items.find({'is_appetizer': False})
+        return redirect(url_for('allocateitems', receipt_id=receipt_id))
 
-    return render_template('allocateitems.html', people=people, food_items=food_items)
+    receipt = db.receipts.find_one({"_id": ObjectId(receipt_id)})
+    people = receipt['people_names'] if receipt else []
+    food_items = [item for item in receipt['items'] if not item.get('is_appetizer', False)] if receipt else []
+    return render_template('allocateitems.html', people=people, food_items=food_items, receipt_id=receipt_id)
 
 
 #calculate total, show total, update receipt in database 
