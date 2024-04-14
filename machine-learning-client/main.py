@@ -31,7 +31,7 @@ app = Flask(__name__)
 def predict_endpoint():
     # Get the image data from the request
     Object_ID = request.data
-    image = db.receipts.find_one({"_id": ObjectId(Object_ID)})['image_data']
+    image = db.receipts.find_one({"_id": Object_ID})['image_data']
 
     # Here, you would add the code to perform OCR on the image
     # For now, let's assume you have a function called perform_ocr that does this
@@ -61,6 +61,7 @@ def predict_endpoint():
     }
 
     # Update the document with given ObjectId
+    # Need to change input_id to Object_Id
     collection.update_one({'_id': input_id}, {'$set': receipt_data})
     inserted_id = input_id
 
