@@ -14,37 +14,20 @@ In this project, we redesigned the frontend, containerized the web app and datab
 
 # How To Run ChequeMate
 
-## From the root dir, run
+From the root directory, run `docker compose up --build`
 
-`docker compose up --build`
+Then open `http://localhost:10000/` in your local browser to view our web app.
 
-## To build + run docker containers locally for ml_client + web_app + db:
-In one terminal,
+The three containers are connected through a docker network. Note that the OCR API key is from a free version so it will only be able to properly process a couple requests per hour.
 
-`docker network create ChequeMate`
+# Learnings + Limitations
 
-`cd web_app/`
+We were able to utilize docker and docker compose to develop a multi-container app that leverages machine learning.
 
-`docker build -t web_app_image .`
+We ended up falling short again due to our inexperience with docker containers and transferring files properly between the database image and other images. We were able to initially connect to the database and upload images but seem to be unable to access them after.
 
-`docker run -it --rm --name web_app_container -p 5000:5000 --network ChequeMate web_app_image`
-
-In another terminal,
-
-`cd machine_learning_client`
-
-`docker build -t ml_client_image .`
-
-`docker run -it --rm --name ml_client_container -p 5001:5001 --network ChequeMate ml_client_image`
-
-In another another terminal,
-
-`docker run --name mongodb -d -p 27017:27017 --network ChequeMate mongo`
-
-The three containers are now connected through a docker network.
+We are hopeful however, in the utility of our app and will continue to make improvements until we have a working bill-splitting OCR app.
 
 # Credits
 
 ML client based off tutorial by [NeuralNine](https://www.youtube.com/watch?v=dSCJ7DImGdA) using the asprise OCR API.
-
-README run instructions referenced from [Team Speedy](https://github.com/software-students-spring2024/4-containerized-app-exercise-speedy)
