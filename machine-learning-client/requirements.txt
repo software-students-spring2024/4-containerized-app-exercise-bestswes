@@ -2,3 +2,4 @@ pymongo
 pylint
 black
 requests
+Flask
