@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, redirect, request, url_for
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -26,10 +27,7 @@ def upload_receipt():
     return 'File upload failed', 400
 
 
-@app.route('/history')
-def history():
-    # Implement retrieval and display of receipt history
-    return render_template('history.html')
+
 
 #(  pull receipt from database )
 #ask for num people / names 
