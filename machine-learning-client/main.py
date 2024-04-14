@@ -1,8 +1,16 @@
+import os
 from flask import Flask, request, jsonify
 import requests
+import pymongo
 from pymongo import MongoClient
 import json
+from dotenv import load_dotenv
 from bson import ObjectId
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Use receipt-OCR.py to get response1.json
 # (can only do this a couple times an hour with the test API key)
@@ -26,25 +34,39 @@ print(f"Total: {data['receipts'][0]['currency']} {data['receipts'][0]['total']}"
 # print(data['receipts'])
 
 
+# load credentials and configuration options from .env file
+# if you do not yet have a file named .env, make one based on the templatpip e in env.example
+load_dotenv()  # take environment variables from .env.
+
+# instantiate the app
 app = Flask(__name__)
+app.secret_key = 'a_unique_and_secret_key'
+# # turn on debugging if in development mode
+if os.getenv("FLASK_ENV", "development") == "development":
+#     # turn on debugging, if in development
+    app.debug = True  # debug mnode
+
+# connect to the database
+cxn = pymongo.MongoClient(os.getenv("MONGO_URI"))
+db = cxn[os.getenv("MONGO_DBNAME")]  # store a reference to the database
 
 @app.route('/predict', methods=['POST'])
 def pretdict_endpoint():
     # Get the image data from the request
-    Object_ID = ObjectId(request.data)
-    image = db.receipts.find_one({"_id": Object_ID})['image_data']
+    request_data = request.get_json()  # Extract JSON data from the request
+    if 'Object_ID' not in request_data:
+        return jsonify({'error': 'Object_ID not found in request data'}), 400
+    
+    Object_ID = ObjectId(request_data['Object_ID']) 
+    logger.debug(Object_ID)
+    #image = db.receipts.find_one({"_id": Object_ID})['image']
 
     # Here, you would add the code to perform OCR on the image
     # For now, let's assume you have a function called perform_ocr that does this
     
-    # data = perform_ocr(image)
-    data = json.load(open("response1.json", "r"))
-
-    # Create a MongoDB client
-    client = MongoClient('mongodb://db:27017/')
-
-    # Connect to your database (replace 'mydatabase' with your database name)
-    db = client['db']
+    # Uncomment next line to perform OCR
+    data = perform_ocr(Object_ID)
+    #data = json.load(open("response1.json", "r"))
 
     # Connect to your collection (replace 'mycollection' with your collection name)
     collection = db['receipts']
@@ -60,6 +82,7 @@ def pretdict_endpoint():
         'tip': receipt['tip'],
         'subtotal': receipt['subtotal'],
     }
+    logger.debug(receipt_data)
 
     # Update the document with given ObjectId
     collection.update_one({'_id': Object_ID}, {'$set': receipt_data})
@@ -68,8 +91,11 @@ def pretdict_endpoint():
     # Return the inserted_id as a JSON response
     return jsonify({'_id': str(inserted_id)})
 
-def perform_ocr(image):
+def perform_ocr(Object_ID):
     url = "https://ocr.asprise.com/api/v1/receipt"
+    file_path = db.receipts.find_one({"_id": Object_ID})['image']
+    file_path = file_path.replace('\x00', '')  # Remove any null bytes from the file path
+
 
     # Get response (can only do this a couple times with the test API key)
     res = requests.post(url, 
@@ -78,8 +104,9 @@ def perform_ocr(image):
                             'recognizer': 'auto',
                             'ref_no': 'ocr_python_123'
                         },
+
                         files = {
-                            'file': open(image, "rb")
+                            'file': open(file_path, "rb")
                         })
 
     with open("response.json", "w") as f:

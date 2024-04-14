@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 import requests
 from dotenv import load_dotenv
 from bson import ObjectId
+import json
 
 import logging
 
@@ -33,8 +34,13 @@ db = cxn[os.getenv("MONGO_DBNAME")]  # store a reference to the database
 # Call the ML service to perform OCR on the receipt
 def call_ml_service(Object_ID):
     url = "http://machine-learning-client:5002/predict"
-    response = requests.post(url, data=Object_ID)
+    headers = {'Content-Type': 'application/json'}
+    data = json.dumps({"Object_ID": str(Object_ID)})  # Serialize the Object_ID into a JSON string
+    response = requests.post(url, data=data, headers=headers)
+    logger.debug(f"Response Status Code: {response.status_code}")
+    logger.debug(f"Response Text: {response.text}")
     return response.json()
+
 
 #homepage -add receipt - history 
 @app.route('/')
@@ -54,6 +60,8 @@ def upload_image():
         try:
             result = db.receipts.insert_one({"image": image_data})
             inserted_id = str(result.inserted_id)
+            #logger.debug("YAY", inserted_id)
+            call_ml_service(inserted_id)
             return redirect(url_for('numofpeople', receipt_id=inserted_id))
         except pymongo.errors.ServerSelectionTimeoutError as e:
             logger.error("Could not connect to MongoDB: %s", str(e))
@@ -68,7 +76,7 @@ def numofpeople(receipt_id):
     """
     Display the form to enter the number of people and their names.
     """
-    return render_template("numofpeople.html")
+    return render_template("numofpeople.html", receipt_id=receipt_id)
 
 @app.route('/submit_people/<receipt_id>', methods=["POST"])
 def submit_people(receipt_id):
@@ -83,7 +91,8 @@ def submit_people(receipt_id):
     try:
         # Update the existing document in the receipts collection
         db.receipts.update_one({"_id": ObjectId(receipt_id)}, {"$set": {"num_of_people": count, "names": names_list}})
-        return redirect(url_for('select_appetizers'))  # Redirect to another page after submission
+        return redirect(url_for('select_appetizers', receipt_id=receipt_id))
+         # Redirect to another page after submission
     except pymongo.errors.ServerSelectionTimeoutError as e:
         logger.error("Could not connect to MongoDB: %s", str(e))
         return jsonify({"error": "Database connection failed"}), 503
@@ -96,8 +105,8 @@ def select_appetizers(receipt_id):
         appetizer_ids = request.form.getlist('appetizers')
         
         # Update the database: set 'is_appetizer' to True for checked items and False otherwise
-        db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$set': {'food_items.$[].is_appetizer': False}})
-        db.receipts.update_one({'_id': ObjectId(receipt_id), 'food_items._id': {'$in': [ObjectId(id) for id in appetizer_ids]}}, {'$set': {'food_items.$.is_appetizer': True}})
+        db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$set': {'items.$[].is_appetizer': False}})
+        db.receipts.update_one({'_id': ObjectId(receipt_id), 'items._id': {'$in': [ObjectId(id) for id in appetizer_ids]}}, {'$set': {'items.$.is_appetizer': True}})
         
         return redirect(url_for('select_appetizers', receipt_id=receipt_id))
 
@@ -107,9 +116,9 @@ def select_appetizers(receipt_id):
         return jsonify({"error": "Receipt not found"}), 404
     
     # Extract the food_items from the receipt document
-    food_items = receipt.get('food_items', [])
+    items = receipt.get('items', [])
     
-    return render_template('select_appetizers.html', items=food_items)
+    return render_template('select_appetizers.html', items=items)
 
 
 
@@ -142,7 +151,7 @@ def allocateitems(receipt_id):
     
     # Extract people and food_items from the receipt document
     people = receipt.get('people', [])
-    food_items = receipt.get('food_items', [])
+    food_items = receipt.get('items', [])
 
     return render_template('allocateitems.html', people=people, food_items=food_items)
 
