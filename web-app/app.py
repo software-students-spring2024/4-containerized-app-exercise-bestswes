@@ -5,6 +5,7 @@ from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 import requests
 from dotenv import load_dotenv
+from bson import ObjectId
 
 import logging
 
@@ -62,15 +63,15 @@ def upload_image():
 
 
 #(  pull receipt from database )
-@app.route('/numofpeople')
-def numofpeople():
+@app.route('/numofpeople/<receipt_id>')
+def numofpeople(receipt_id):
     """
     Display the form to enter the number of people and their names.
     """
     return render_template("numofpeople.html")
 
-@app.route('/submit_people', methods=["POST"])
-def submit_people():
+@app.route('/submit_people/<receipt_id>', methods=["POST"])
+def submit_people(receipt_id):
     """
     Process the submitted number of people and names.
     """
@@ -78,41 +79,51 @@ def submit_people():
     names = request.form['names']
     # Split the names by comma and strip spaces
     names_list = [name.strip() for name in names.split(',')]
-    
-    # Example: Store in the database or perform other operations
-    db.people.insert_one({"count": count, "names": names_list})
-    
-    return redirect(url_for('select_appetizers'))  # Redirect to another page after submission
 
+    try:
+        # Update the existing document in the receipts collection
+        db.receipts.update_one({"_id": ObjectId(receipt_id)}, {"$set": {"num_of_people": count, "names": names_list}})
+        return redirect(url_for('select_appetizers'))  # Redirect to another page after submission
+    except pymongo.errors.ServerSelectionTimeoutError as e:
+        logger.error("Could not connect to MongoDB: %s", str(e))
+        return jsonify({"error": "Database connection failed"}), 503
 #label appetizers
-@app.route('/select_appetizers', methods=['GET', 'POST'])
-def select_appetizers():
+
+@app.route('/select_appetizers/<receipt_id>', methods=['GET', 'POST'])
+def select_appetizers(receipt_id):
     if request.method == 'POST':
         # Retrieve a list of IDs for the items marked as appetizers
         appetizer_ids = request.form.getlist('appetizers')
         
         # Update the database: set 'is_appetizer' to True for checked items and False otherwise
-        db.food_items.update_many({}, {'$set': {'is_appetizer': False}})
-        db.food_items.update_many({'_id': {'$in': [ObjectId(id) for id in appetizer_ids]}}, {'$set': {'is_appetizer': True}})
+        db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$set': {'food_items.$[].is_appetizer': False}})
+        db.receipts.update_one({'_id': ObjectId(receipt_id), 'food_items._id': {'$in': [ObjectId(id) for id in appetizer_ids]}}, {'$set': {'food_items.$.is_appetizer': True}})
         
-        return redirect(url_for('select_appetizers'))
+        return redirect(url_for('select_appetizers', receipt_id=receipt_id))
 
-    # Fetch all food items from the database
-    items = db.food_items.find()
-    return render_template('select_appetizers.html', items=items)
+    # Fetch the receipt document from the database based on the provided receipt_id
+    receipt = db.receipts.find_one({'_id': ObjectId(receipt_id)})
+    if not receipt:
+        return jsonify({"error": "Receipt not found"}), 404
+    
+    # Extract the food_items from the receipt document
+    food_items = receipt.get('food_items', [])
+    
+    return render_template('select_appetizers.html', items=food_items)
+
 
 
 
 #allocate items -> people 
 
-@app.route('/allocateitems', methods=['GET', 'POST'])
-def allocateitems():
+@app.route('/allocateitems/<receipt_id>', methods=['GET', 'POST'])
+def allocateitems(receipt_id):
     if request.method == 'POST':
         # Retrieve form data, structured as {name: [list of food item ids]}
         allocations = {key: request.form.getlist(key) for key in request.form.keys()}
         
         # Clear previous allocations
-        db.allocations.drop()
+        db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$unset': {'allocations': ''}})
         
         # Insert new allocations ensuring no item is assigned more than once
         used_items = set()
@@ -120,14 +131,21 @@ def allocateitems():
             new_items = [item for item in items if item not in used_items]
             used_items.update(new_items)
             if new_items:
-                db.allocations.insert_one({"name": name, "items": new_items})
+                db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$push': {'allocations': {"name": name, "items": new_items}}})
         
-        return redirect(url_for('allocateitems'))
+        return redirect(url_for('allocateitems', receipt_id=receipt_id))
 
-    people = db.people.find()
-    food_items = db.food_items.find({'is_appetizer': False})
+    # Fetch the receipt document from the database based on the provided receipt_id
+    receipt = db.receipts.find_one({'_id': ObjectId(receipt_id)})
+    if not receipt:
+        return jsonify({"error": "Receipt not found"}), 404
+    
+    # Extract people and food_items from the receipt document
+    people = receipt.get('people', [])
+    food_items = receipt.get('food_items', [])
 
     return render_template('allocateitems.html', people=people, food_items=food_items)
+
 
 
 #calculate total, show total, update receipt in database 
