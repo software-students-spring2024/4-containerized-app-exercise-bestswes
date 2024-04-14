@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import requests
 from pymongo import MongoClient
 import json
+from bson import ObjectId
 
 # Use receipt-OCR.py to get response1.json
 # (can only do this a couple times an hour with the test API key)
@@ -30,8 +31,8 @@ app = Flask(__name__)
 @app.route('/predict', methods=['POST'])
 def pretdict_endpoint():
     # Get the image data from the request
-    Object_ID = request.data
-    image = db.receipts.find_one({"_id": ObjectId(Object_ID)})['image_data']
+    Object_ID = ObjectId(request.data)
+    image = db.receipts.find_one({"_id": Object_ID})['image_data']
 
     # Here, you would add the code to perform OCR on the image
     # For now, let's assume you have a function called perform_ocr that does this
@@ -61,8 +62,8 @@ def pretdict_endpoint():
     }
 
     # Update the document with given ObjectId
-    collection.update_one({'_id': input_id}, {'$set': receipt_data})
-    inserted_id = input_id
+    collection.update_one({'_id': Object_ID}, {'$set': receipt_data})
+    inserted_id = Object_ID
 
     # Return the inserted_id as a JSON response
     return jsonify({'_id': str(inserted_id)})
