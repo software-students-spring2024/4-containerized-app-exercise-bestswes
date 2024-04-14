@@ -114,14 +114,6 @@ def allocateitems():
 
 #calculate total, show total, update receipt in database 
 
-from bson import ObjectId
-from flask import Flask, jsonify, abort
-from pymongo import MongoClient
-
-app = Flask(__name__)
-client = MongoClient("mongodb://localhost:27017/")
-db = client['yourdatabase']
-
 @app.route('/calculate_bill/<_id>')
 def calculate_bill(_id):
     try:
