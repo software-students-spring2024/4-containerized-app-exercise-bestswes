@@ -14,9 +14,11 @@ In this project, we redesigned the frontend, containerized the web app and datab
 
 # How To Run ChequeMate
 
-From the root directory, run `docker compose up --build`
+First, rename the `env.sample` file to `.env` and make any necessary adjustments.
 
-Then open `http://localhost:10000/` in your local browser to view our web app.
+Next, from the root directory, run `docker compose up --build`
+
+Finally, open `http://localhost:10000/` in your local browser to view our web app.
 
 The three containers are connected through a docker network. Note that the OCR API key is from a free version so it will only be able to properly process a couple requests per hour.
 
