@@ -1,6 +1,8 @@
 import os
 from flask import Flask, render_template, redirect, request, url_for
 from pymongo import MongoClient
+from bson.objectid import ObjectId
+
 
 app = Flask(__name__)
 
@@ -9,7 +11,9 @@ client = MongoClient(os.getenv("MONGO_URI", "mongodb://mongodb:27017/"))
 db = client.test
 
 #homepage -add receipt - history 
-
+@app.route('/')
+def home():
+    return render_template('home.html')
 #get image route -create new receipt in databse  
 @app.route("/upload_image", methods=["POST"])
 def upload_image():
