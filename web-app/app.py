@@ -135,7 +135,11 @@ def calculate_bill(_id):
 
     num_of_people = receipt['num_of_people']
     items = receipt['items']
-    diners = receipt.get('allocations', [])  # Get diners field, defaulting to an empty list if not found
+    diners = receipt.get('diners', [])  # Get diners field
+
+    # Extract tax and tip percentages from the receipt
+    tax_rate = 0.0875  # Default tax rate of 8.75%
+    tip_percentage = receipt.get('tip_percentage', 0) / 100  # Convert tip percentage to decimal
 
     # Calculate total cost of appetizers and split equally
     appetizer_total = sum(item['price'] for item in items if item.get('is_appetizer', False))
@@ -144,16 +148,27 @@ def calculate_bill(_id):
     # Initialize a dictionary to hold each diner's total, starting with the appetizer split
     payments = {}
 
-    # Process each diner's payment, assuming each diner object includes a name and a list of dish names
+    # Calculate the total cost before tax and tip to determine the base for these calculations
+    subtotal = sum(item['price'] for item in items)
+
+    # Calculate total tax and tip
+    total_tax = subtotal * tax_rate
+    total_tip = subtotal * tip_percentage
+
+    # Adjust appetizer split to include proportional tax and tip
+    appetizer_split += (appetizer_split / subtotal) * (total_tax + total_tip)
+
+    # Process each diner's payment
     for diner in diners:
         diner_name = diner['name']
-        total = appetizer_split
-        for dish_name in diner['dishes']:
-            # Find dish price from items list
-            for item in items:
-                if item['name'] == dish_name:
-                    total += item['price']
-                    break
+        total = appetizer_split  # Start with their share of appetizers including tax and tip
+        diner_dishes_total = sum(item['price'] for item in items if item['name'] in diner['dishes'])
+
+        # Add diner's share of tax and tip based on their ordered items
+        diner_tax = diner_dishes_total * tax_rate
+        diner_tip = diner_dishes_total * tip_percentage
+        total += diner_dishes_total + diner_tax + diner_tip
+
         payments[diner_name] = total
 
     # Update the receipt with the calculated payments
