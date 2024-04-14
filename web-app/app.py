@@ -1,14 +1,33 @@
 import os
 from flask import Flask, render_template, redirect, request, url_for, jsonify
+import pymongo
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 import requests
+from dotenv import load_dotenv
 
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+
+# load credentials and configuration options from .env file
+# if you do not yet have a file named .env, make one based on the templatpip e in env.example
+load_dotenv()  # take environment variables from .env.
+
+# instantiate the app
 app = Flask(__name__)
+app.secret_key = 'a_unique_and_secret_key'
+# # turn on debugging if in development mode
+if os.getenv("FLASK_ENV", "development") == "development":
+#     # turn on d   ebugging, if in development
+    app.debug = True  # debug mnode
 
-# Connect to MongoDB
-client = MongoClient(os.getenv("MONGO_URI", "mongodb://mongodb:27017/"))
-db = client.test
+# connect to the database
+cxn = pymongo.MongoClient(os.getenv("MONGO_URI"))
+db = cxn[os.getenv("MONGO_DBNAME")]  # store a reference to the database
+
 
 # Call the ML service to perform OCR on the receipt
 def call_ml_service(Object_ID):
@@ -22,23 +41,25 @@ def home():
     return render_template('home.html')
 
 @app.route('/upload', methods=['POST'])
-def upload_receipt():
-    file = request.files['receipt_image']
-    if file and file.filename:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-        
-        # Implement any processing or database storage as necessary
-        image_data = request.form["image_data"]
-        Object_ID = 0
-        if image_data != "test":
-            result = db.images.insert_one({"image_data": image_data})
-            Object_ID = result.inserted_id
-        print('ObjectID: ', Object_ID)
-        call_ml_service(Object_ID)
-        return redirect(url_for('home'))
-    return 'File upload failed', 400
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image part"}), 400
+
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if file:
+        image_data = file.read()
+        try:
+            result = db.receipts.insert_one({"image": image_data})
+            inserted_id = str(result.inserted_id)
+            return redirect(url_for('numofpeople', receipt_id=inserted_id))
+        except pymongo.errors.ServerSelectionTimeoutError as e:
+            logger.error("Could not connect to MongoDB: %s", str(e))
+            return jsonify({"error": "Database connection failed"}), 503
+
+    return jsonify({"error": "Unexpected error occurred"}), 500
+
 
 #(  pull receipt from database )
 @app.route('/numofpeople')
@@ -61,7 +82,7 @@ def submit_people():
     # Example: Store in the database or perform other operations
     db.people.insert_one({"count": count, "names": names_list})
     
-    return redirect(url_for('search_history'))  # Redirect to another page after submission
+    return redirect(url_for('select_appetizers'))  # Redirect to another page after submission
 
 #label appetizers
 @app.route('/select_appetizers', methods=['GET', 'POST'])
@@ -208,4 +229,6 @@ def test_connection():
     return jsonify(success=True, message="Machine Learning Client is reachable"), 200
 
 if __name__ == '__main__':
+    port = int(os.getenv('FLASK_PORT', 10000))  # Default to 5000 if FLASK_PORT is not set
+
     app.run(debug=True, host='0.0.0.0')
