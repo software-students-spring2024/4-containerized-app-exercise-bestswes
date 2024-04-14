@@ -1,5 +1,5 @@
 # docs: https://hub.docker.com/_/python
-FROM python:3
+FROM python:3.8-slim-buster
 
 WORKDIR /web_app
 
@@ -8,4 +8,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD [ "python", "app.py" ]
+EXPOSE 5000
+CMD [ "python3", "-m" , "flask", "run", "--host=0.0.0.0"]
