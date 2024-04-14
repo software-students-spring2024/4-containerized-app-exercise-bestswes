@@ -1,14 +1,20 @@
 import os
 from flask import Flask, render_template, redirect, request, url_for
 from pymongo import MongoClient
-from bson.objectid import ObjectId
 from werkzeug.utils import secure_filename
+import requests
 
 app = Flask(__name__)
 
 # Connect to MongoDB
 client = MongoClient(os.getenv("MONGO_URI", "mongodb://mongodb:27017/"))
 db = client.test
+
+# Call the ML service to perform OCR on the receipt
+def call_ml_service(Object_ID):
+    url = "http://machine-learning-client:5002/predict"
+    response = requests.post(url, data=Object_ID)
+    return response.json()
 
 #homepage -add receipt - history 
 @app.route('/')
@@ -22,7 +28,15 @@ def upload_receipt():
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
+        
         # Implement any processing or database storage as necessary
+        image_data = request.form["image_data"]
+        Object_ID = 0
+        if image_data != "test":
+            result = db.images.insert_one({"image_data": image_data})
+            Object_ID = result.inserted_id
+        print('ObjectID: ', Object_ID)
+        call_ml_service(Object_ID)
         return redirect(url_for('home'))
     return 'File upload failed', 400
 
