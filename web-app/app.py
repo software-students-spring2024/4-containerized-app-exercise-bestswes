@@ -25,7 +25,35 @@ def upload_image():
 #ask for num people / names 
 #label appetizers
 #allocate items -> people 
+
 #calculate total, show total, update receipt in database 
+
+@app.route('/calculate_bill/<receipt_id>')
+def calculate_bill(receipt_id):
+    receipt = db.receipts.find_one({"_id": receipt_id})
+    if not receipt:
+        return "Receipt not found", 404
+
+    num_of_people = receipt['num_of_people']
+    items = receipt['items']
+
+    # Calculate total cost of appetizers and split equally
+    appetizer_total = sum(item['price'] for item in items if item['is_appetizer'])
+    appetizer_split = appetizer_total / num_of_people if num_of_people else 0
+
+    # Initialize a dictionary to hold each diner's total, starting with the appetizer split
+    payments = {}
+    for person, dishes in db.diners.items():
+        total = 0
+        for dish in dishes:
+            if dish in db.receipts.items:
+                total += db.receipts.items[dish]
+        total += appetizer_split
+        payments[person] = total
+    return payments
+
+    db.receipts.find_one_and_update({"_id": receipt_id}, payments)
+
 
 
 @app.route("/search_history")
