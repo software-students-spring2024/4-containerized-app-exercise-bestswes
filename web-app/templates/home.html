@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CheckMate Receipt Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <h1>Welcome to the CheckMate</h1>
+    <!-- Updated form to capture images directly from the camera -->
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" accept="image/*" capture="camera" name="receipt_image">
+        <input type="submit" value="Upload Receipt">
+    </form>
+    <button onclick="location.href='/history'">Show History</button>
+</body>
+</html>

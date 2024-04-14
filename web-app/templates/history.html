@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt History</title>
+</head>
+<body>
+    <h1>Receipts History</h1>
+    {% for receipt in receipts %}
+    <div>
+        <p>Receipt ID: {{ receipt._id }}</p>
+        <!-- Display more details as needed -->
+    </div>
+    {% endfor %}
+    <button onclick="location.href='/'">Back to Home</button>
+</body>
+</html>
