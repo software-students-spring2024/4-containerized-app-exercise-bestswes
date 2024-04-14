@@ -24,7 +24,7 @@ The three containers are connected through a docker network. Note that the OCR A
 
 We were able to utilize docker and docker compose to develop a multi-container app that leverages machine learning.
 
-We ended up falling short again due to our inexperience with docker containers and transferring files properly between the database image and other images. We were able to initially connect to the database and upload images but seem to be unable to access them after.
+We ended up falling short again due to our inexperience with docker containers and transferring files properly between the database image and other images. We pivoted to using atlas clusters instead of localhost to host our mongodb database.
 
 We are hopeful however, in the utility of our app and will continue to make improvements until we have a working bill-splitting OCR app.
 
