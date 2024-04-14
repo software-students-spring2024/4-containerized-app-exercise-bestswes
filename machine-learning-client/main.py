@@ -28,7 +28,7 @@ print(f"Total: {data['receipts'][0]['currency']} {data['receipts'][0]['total']}"
 app = Flask(__name__)
 
 @app.route('/predict', methods=['POST'])
-def predict_endpoint():
+def pretdict_endpoint():
     # Get the image data from the request
     Object_ID = request.data
     image = db.receipts.find_one({"_id": ObjectId(Object_ID)})['image_data']
