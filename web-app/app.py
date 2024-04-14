@@ -48,7 +48,6 @@ def upload_image():
     file = request.files['image']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-
     if file:
         image_data = file.read()
         try:
@@ -60,7 +59,6 @@ def upload_image():
             return jsonify({"error": "Database connection failed"}), 503
 
     return jsonify({"error": "Unexpected error occurred"}), 500
-
 
 
 #(  pull receipt from database )
@@ -211,6 +209,24 @@ def history():
     items_list = list(items)
 
     return render_template("search_history.html", items=items_list)
+
+@app.route('/test_mongodb')
+def test_mongodb():
+    try:
+        info = db.command('serverStatus')
+        return jsonify(success=True, message="Successfully connected to MongoDB", info=info), 200
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
+@app.route('/test_ml_service')
+def test_ml_service():
+    response = requests.get('http://machine-learning-client:5002/test_connection')
+    if response.status_code == 200:
+        return jsonify(success=True, message="Connected to ML service", response=response.json()), 200
+    else:
+        return jsonify(success=False, message="Failed to connect to ML service"), 500
+@app.route('/test_connection', methods=['GET'])
+def test_connection():
+    return jsonify(success=True, message="Machine Learning Client is reachable"), 200
 
 if __name__ == '__main__':
     port = int(os.getenv('FLASK_PORT', 10000))  # Default to 5000 if FLASK_PORT is not set
