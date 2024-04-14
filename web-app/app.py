@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, redirect, request, url_for
+from flask import Flask, render_template, redirect, request, url_for, jsonify
 from pymongo import MongoClient
 from werkzeug.utils import secure_filename
 import requests
@@ -39,9 +39,6 @@ def upload_receipt():
         call_ml_service(Object_ID)
         return redirect(url_for('home'))
     return 'File upload failed', 400
-
-
-
 
 #(  pull receipt from database )
 @app.route('/numofpeople')
@@ -191,6 +188,24 @@ def history():
     items_list = list(items)
 
     return render_template("search_history.html", items=items_list)
+
+@app.route('/test_mongodb')
+def test_mongodb():
+    try:
+        info = db.command('serverStatus')
+        return jsonify(success=True, message="Successfully connected to MongoDB", info=info), 200
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
+@app.route('/test_ml_service')
+def test_ml_service():
+    response = requests.get('http://machine-learning-client:5002/test_connection')
+    if response.status_code == 200:
+        return jsonify(success=True, message="Connected to ML service", response=response.json()), 200
+    else:
+        return jsonify(success=False, message="Failed to connect to ML service"), 500
+@app.route('/test_connection', methods=['GET'])
+def test_connection():
+    return jsonify(success=True, message="Machine Learning Client is reachable"), 200
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
