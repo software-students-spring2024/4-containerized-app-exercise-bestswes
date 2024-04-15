@@ -8,11 +8,11 @@
     <h1>Allocate Food Items to Individuals</h1>
     <form method="post">
         {% for person in people %}
-            <h3>{{ person.names }}</h3>
+            <h3>{{ person }}</h3> <!-- Ensure variable matches what's expected -->
             {% for item in food_items %}
                 <div>
-                    <input type="checkbox" name="{{ person.names }}" value="{{ item._id }}">
-                    <label>{{ item.name }}</label>
+                    <input type="checkbox" name="{{ person }}" value="{{ item._id }}"> <!-- Ensure the name field is correctly handled -->
+                    <label>{{ item.description }}</label> <!-- Adjusted to use a descriptive field -->
                 </div>
             {% endfor %}
         {% endfor %}

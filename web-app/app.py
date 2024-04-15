@@ -101,23 +101,39 @@ def submit_people(receipt_id):
 @app.route('/select_appetizers/<receipt_id>', methods=['GET', 'POST'])
 def select_appetizers(receipt_id):
     if request.method == 'POST':
+        if 'no_appetizers' in request.form and request.form['no_appetizers'] == 'none':
+            logging.debug("No appetizers selected by user.")
+            db.receipts.update_one(
+                {'_id': ObjectId(receipt_id)},
+                {'$set': {'items.$[].is_appetizer': False}}  # Reset all items to not be appetizers
+            )
+            return redirect(url_for('allocateitems', receipt_id=receipt_id))
+
         appetizer_ids = request.form.getlist('appetizers')
-        logger.debug(f"Received appetizer IDs: {appetizer_ids}")
+        logging.debug(f"Received appetizer IDs: {appetizer_ids}")
 
         valid_ids = [id for id in appetizer_ids if ObjectId.is_valid(id) and id.strip() != '']
-        logger.debug(f"Valid appetizer IDs: {valid_ids}")
+        logging.debug(f"Valid appetizer IDs: {valid_ids}")
 
         if valid_ids:
             object_ids = [ObjectId(id) for id in valid_ids]
-            db.receipts.update_one(
+            db.receipts.update_many(
                 {'_id': ObjectId(receipt_id)},
                 {'$set': {'items.$[elem].is_appetizer': True}},
                 array_filters=[{'elem._id': {'$in': object_ids}}]
             )
-            return redirect(url_for('allocateitems', receipt_id=receipt_id))
+            db.receipts.update_one(
+                {'_id': ObjectId(receipt_id)},
+                {'$set': {'items.$[elem].is_appetizer': False}},
+                array_filters=[{'elem._id': {'$nin': object_ids}}]
+            )
         else:
-            logger.debug("No valid appetizer IDs submitted; redirecting back to form.")
-            return redirect(url_for('select_appetizers', receipt_id=receipt_id))
+            db.receipts.update_one(
+                {'_id': ObjectId(receipt_id)},
+                {'$set': {'items.$[].is_appetizer': False}}
+            )
+
+        return redirect(url_for('allocateitems', receipt_id=receipt_id))
 
     receipt = db.receipts.find_one({'_id': ObjectId(receipt_id)})
     if not receipt:
@@ -137,11 +153,12 @@ def allocateitems(receipt_id):
         # Process form data and re-allocate items
         allocations = {key: request.form.getlist(key) for key in request.form.keys()}
         for name, items in allocations.items():
-            db.receipts.update_one(
-                {'_id': ObjectId(receipt_id)},
-                {'$push': {'allocations': {'name': name, 'items': items}}}
-            )
-        return redirect(url_for('calculate_bill', _id=receipt_id))
+            if items:  # Ensure we don't push empty lists
+                db.receipts.update_one(
+                    {'_id': ObjectId(receipt_id)},
+                    {'$push': {'allocations': {'name': name, 'items': items}}}
+                )
+        return redirect(url_for('calculate_bill', receipt_id=receipt_id))
 
     # Fetch data to display form
     receipt = db.receipts.find_one({'_id': ObjectId(receipt_id)})
@@ -158,47 +175,60 @@ def allocateitems(receipt_id):
 
 #calculate total, show total, update receipt in database 
 
-@app.route('/calculate_bill/<_id>')
-def calculate_bill(_id):
+@app.route('/calculate_bill/<receipt_id>')
+def calculate_bill(receipt_id):
     try:
         # Convert _id from string to ObjectId and find the receipt
-        receipt = db.receipts.find_one({"_id": ObjectId(_id)})
+        receipt = db.receipts.find_one({"_id": ObjectId(receipt_id)})
     except:
         return "Invalid ID format", 400
 
     if not receipt:
         return jsonify({"error": "Receipt not found"}), 404
+    
+    try:
+        num_of_people = int(receipt.get('num_of_people', 0))
+    except ValueError:
+        return "Invalid number of people", 400
 
-    num_of_people = receipt['num_of_people']
     items = receipt['items']
-    diners = receipt.get('allocations', [])  # Get diners field
+    diners = receipt['allocations']
 
-    # Extract tax and tip percentages from the receipt
-    tax_rate = 0.0875  # Default tax rate of 8.75%
-    tip_percentage = receipt.get('tip_percentage', 0) / 100  # Convert tip percentage to decimal
+    # Assuming tax and tip percentages are stored as part of the receipt
+    tax_rate = receipt.get('tax_rate', 8.75) / 100
+    tip_percentage = receipt.get('tip_percentage', 18) / 100
 
     # Calculate total cost of appetizers and split equally
-    appetizer_total = sum(item['price'] for item in items if item.get('is_appetizer', False))
-    appetizer_split = appetizer_total / num_of_people if num_of_people > 0 else 0
+    appetizer_total = sum(item['amount'] for item in items if item.get('is_appetizer') is True)
+    logger.debug("Appetizer total: $%.2f", appetizer_total)  # Properly formatted log message
 
+    if num_of_people > 0:
+        appetizer_split = appetizer_total / num_of_people
+    else:
+        appetizer_split = 0
+
+    logger.debug("Appetizer split per person: $%.2f", appetizer_split)
     # Initialize a dictionary to hold each diner's total, starting with the appetizer split
     payments = {}
-
-    # Calculate the total cost before tax and tip to determine the base for these calculations
-    subtotal = sum(item['price'] for item in items)
+    logger.debug("payments", payments)
+    subtotal = sum(item['amount'] for item in items)
+    logger.debug("subt", subtotal)
 
     # Calculate total tax and tip
     total_tax = subtotal * tax_rate
+    logger.debug(total_tax)
     total_tip = subtotal * tip_percentage
+    logger.debug(total_tip)
 
     # Adjust appetizer split to include proportional tax and tip
-    appetizer_split += (appetizer_split / subtotal) * (total_tax + total_tip)
+    appetizer_split += (appetizer_split / subtotal) * (total_tax + total_tip) if subtotal > 0 else 0
 
     # Process each diner's payment
     for diner in diners:
         diner_name = diner['name']
+        diner_items = diner['items']
         total = appetizer_split  # Start with their share of appetizers including tax and tip
-        diner_dishes_total = sum(item['price'] for item in items if item['name'] in diner['dishes'])
+        diner_dishes_total = sum(item['amount'] for item in items if item['description'] in diner_items)
 
         # Add diner's share of tax and tip based on their ordered items
         diner_tax = diner_dishes_total * tax_rate
@@ -206,16 +236,12 @@ def calculate_bill(_id):
         total += diner_dishes_total + diner_tax + diner_tip
 
         payments[diner_name] = total
+        logger.debug("updated payments", payments)
 
     # Update the receipt with the calculated payments
-    db.receipts.update_one({"_id": ObjectId(_id)}, {'$set': {'payments': payments}})
+    db.receipts.update_one({"_id": ObjectId(receipt_id)}, {'$set': {'payments': payments}})
 
     return jsonify(payments), 200
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
 
 
 @app.route("/search_history")
