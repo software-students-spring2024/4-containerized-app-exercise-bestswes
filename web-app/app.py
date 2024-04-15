@@ -101,26 +101,29 @@ def submit_people(receipt_id):
 @app.route('/select_appetizers/<receipt_id>', methods=['GET', 'POST'])
 def select_appetizers(receipt_id):
     if request.method == 'POST':
-        # Retrieve a list of IDs for the items marked as appetizers
         appetizer_ids = request.form.getlist('appetizers')
-        
-        # Update the database: set 'is_appetizer' to True for checked items and False otherwise
-        db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$set': {'items.$[].is_appetizer': False}})
-        db.receipts.update_one({'_id': ObjectId(receipt_id), 'items._id': {'$in': [ObjectId(id) for id in appetizer_ids]}}, {'$set': {'items.$.is_appetizer': True}})
-        
-        return redirect(url_for('select_appetizers', receipt_id=receipt_id))
+        logger.debug(f"Received appetizer IDs: {appetizer_ids}")
 
-    # Fetch the receipt document from the database based on the provided receipt_id
+        valid_ids = [id for id in appetizer_ids if ObjectId.is_valid(id) and id.strip() != '']
+        logger.debug(f"Valid appetizer IDs: {valid_ids}")
+
+        if valid_ids:
+            object_ids = [ObjectId(id) for id in valid_ids]
+            db.receipts.update_one(
+                {'_id': ObjectId(receipt_id)},
+                {'$set': {'items.$[elem].is_appetizer': True}},
+                array_filters=[{'elem._id': {'$in': object_ids}}]
+            )
+            return redirect(url_for('allocateitems', receipt_id=receipt_id))
+        else:
+            logger.debug("No valid appetizer IDs submitted; redirecting back to form.")
+            return redirect(url_for('select_appetizers', receipt_id=receipt_id))
+
     receipt = db.receipts.find_one({'_id': ObjectId(receipt_id)})
     if not receipt:
         return jsonify({"error": "Receipt not found"}), 404
-    
-    # Extract the food_items from the receipt document
     items = receipt.get('items', [])
-    
-    return render_template('select_appetizers.html', items=items)
-
-
+    return render_template('select_appetizers.html', items=items, receipt_id=receipt_id)
 
 
 #allocate items -> people 
@@ -128,32 +131,28 @@ def select_appetizers(receipt_id):
 @app.route('/allocateitems/<receipt_id>', methods=['GET', 'POST'])
 def allocateitems(receipt_id):
     if request.method == 'POST':
-        # Retrieve form data, structured as {name: [list of food item ids]}
-        allocations = {key: request.form.getlist(key) for key in request.form.keys()}
-        
-        # Clear previous allocations
+        # Clear previous allocations to avoid duplicates
         db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$unset': {'allocations': ''}})
-        
-        # Insert new allocations ensuring no item is assigned more than once
-        used_items = set()
-        for name, items in allocations.items():
-            new_items = [item for item in items if item not in used_items]
-            used_items.update(new_items)
-            if new_items:
-                db.receipts.update_one({'_id': ObjectId(receipt_id)}, {'$push': {'allocations': {"name": name, "items": new_items}}})
-        
-        return redirect(url_for('allocateitems', receipt_id=receipt_id))
 
-    # Fetch the receipt document from the database based on the provided receipt_id
+        # Process form data and re-allocate items
+        allocations = {key: request.form.getlist(key) for key in request.form.keys()}
+        for name, items in allocations.items():
+            db.receipts.update_one(
+                {'_id': ObjectId(receipt_id)},
+                {'$push': {'allocations': {'name': name, 'items': items}}}
+            )
+        return redirect(url_for('calculate_bill', _id=receipt_id))
+
+    # Fetch data to display form
     receipt = db.receipts.find_one({'_id': ObjectId(receipt_id)})
     if not receipt:
         return jsonify({"error": "Receipt not found"}), 404
     
-    # Extract people and food_items from the receipt document
-    people = receipt.get('people', [])
+    people = receipt.get('names', [])
     food_items = receipt.get('items', [])
 
-    return render_template('allocateitems.html', people=people, food_items=food_items)
+    return render_template('allocateitems.html', people=people, food_items=food_items, receipt_id=receipt_id)
+
 
 
 

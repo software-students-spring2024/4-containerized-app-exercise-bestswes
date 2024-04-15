@@ -8,13 +8,12 @@
     <h1>Select Appetizers</h1>
     <form method="post">
         {% for item in items %}
-            <div>
-                <!-- Check the box if the item is already marked as an appetizer -->
-                <input type="checkbox" name="appetizers" value="{{ item._id }}" {% if item.is_appetizer %} checked {% endif %}>
-                <label>{{ item.name }}</label>
-            </div>
+        <div>
+            <input type="checkbox" name="appetizers" value="{{ item._id }}" {% if item.get('is_appetizer', False) %} checked {% endif %}>
+            <label>{{ item.description }}</label>
+        </div>
         {% endfor %}
         <input type="submit" value="Submit">
-    </form>
+    </form>   
 </body>
 </html>
