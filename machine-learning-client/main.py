@@ -58,7 +58,7 @@ def pretdict_endpoint():
         return jsonify({'error': 'Object_ID not found in request data'}), 400
     
     Object_ID = ObjectId(request_data['Object_ID']) 
-    logger.debug(Object_ID)
+    logger.debug('OBJECT_ID MESSAGE:', Object_ID)
     #image = db.receipts.find_one({"_id": Object_ID})['image']
 
     # Here, you would add the code to perform OCR on the image
@@ -92,8 +92,13 @@ def pretdict_endpoint():
     return jsonify({'_id': str(inserted_id)})
 
 def perform_ocr(Object_ID):
+    logger.debug("starting perform_ocr function...") # debug
     url = "https://ocr.asprise.com/api/v1/receipt"
-    file_path = db.receipts.find_one({"_id": Object_ID})['image']
+    image_data = db.receipts.find_one({"_id": Object_ID})['image']
+    file_path = f"receipt_{Object_ID}.jpg"  # Set the file path to save the image
+    logger.debug("file path: %s", file_path) # debug
+    with open(file_path, "wb") as f:
+        f.write(image_data)
     file_path = file_path.replace('\x00', '')  # Remove any null bytes from the file path
 
 
