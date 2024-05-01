@@ -4,9 +4,9 @@
 
 Welcome to Chequemate 2.0, the premier place to scan receipts and split them with your friends.
 
-This project is an extension of our [first specification project](https://github.com/software-students-spring2024/1-specification-exercise-bestswegroup) and [second project](https://github.com/software-students-spring2024/2-web-app-exercise-bswe) which defined and implemented a bill splitting web app. The goal of this exericse is to build a containerized app that uses machine learning. See [instructions](./instructions.md) for details.
+This project is an extension of our [first specification project](https://github.com/software-students-spring2024/1-specification-exercise-bestswegroup) and [second project](https://github.com/software-students-spring2024/2-web-app-exercise-bswe) which defined and implemented a bill splitting web app. This exercise aims to build a containerized app that uses machine learning. See [instructions](./instructions.md) for details.
 
-In this project, we redesigned the frontend, containerized the web app and database, and added an OCR machine learning container for receipt scanning + parsing.
+In this project, we redesigned the front end, containerized the web app and database, and added an OCR machine-learning container for receipt scanning and parsing.
 
 # Team Members
 
@@ -20,7 +20,7 @@ Next, from the root directory, run `docker compose up --build`
 
 Finally, open `http://localhost:10000/` in your local browser to view our web app.
 
-The three containers are connected through a docker network. Note that the OCR API key is from a free version so it will only be able to properly process a couple requests per hour.
+The three containers are connected through a docker network. Note that the OCR API key is from a free version, so it can only properly process a couple of requests per hour.
 
 # Learnings + Limitations
 
